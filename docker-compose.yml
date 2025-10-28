@@ -1,0 +1,109 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: todo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: kamal2002
+      MYSQL_DATABASE: todo_app
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - todo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      timeout: 20s
+      retries: 10
+      start_period: 30s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: todo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - todo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 10s
+      retries: 5
+
+  # Backend Service
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+    container_name: todo-backend
+    ports:
+      - "5001:5001"
+    volumes:
+        # Mount all root .js files
+      - ./Backend/server.js:/app/server.js
+      - ./Backend/config.js:/app/config.js
+      - ./Backend/database.js:/app/database.js
+      - ./Backend/redis.js:/app/redis.js
+      # Mount folders
+      - ./Backend/middleware:/app/middleware
+      - ./Backend/routes:/app/routes        # Redis file
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=mysql          
+      - DB_USER=root               
+      - DB_PASSWORD=kamal2002    
+      - DB_NAME=todo_app           
+      - REDIS_HOST=redis      
+      - REDIS_PORT=6379          
+      - JWT_SECRET=your_jwt_secret_key_here_make_it_strong
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - todo-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for MySQL to be ready...' &&
+        sleep 10 &&
+        npm run dev
+      "
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./Frontend/todo-frontend
+      dockerfile: Dockerfile.dev
+    container_name: todo-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+     # Mount source code and public files
+      - ./Frontend/todo-frontend/src:/app/src
+      - ./Frontend/todo-frontend/public:/app/public
+      # Mount config files that might affect build
+      - ./Frontend/todo-frontend/package.json:/app/package.json
+      - ./Frontend/todo-frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./Frontend/todo-frontend/postcss.config.js:/app/postcss.config.js
+    environment:
+      - REACT_APP_API_URL=http://localhost:5001
+    depends_on:
+      - backend
+    networks:
+      - todo-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  todo-network:
+    driver: bridge
