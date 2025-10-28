@@ -97,13 +97,25 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           echo "## 🎯 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$STATUS" = "success" ]; then
             echo "### ✅ Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "All tests passed successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Build Details:**" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Backend build completed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Frontend build completed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ MySQL health check passed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Redis health check passed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Backend health check passed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ All tests executed successfully" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Status: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "Pipeline encountered errors. Check logs above for details." >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
@@ -150,13 +162,23 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           echo "## 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           if [ "$STATUS" = "success" ]; then
             echo "### ✅ Status: DEPLOYMENT SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "Docker images successfully built and pushed to registry!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Published Images:**" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Status: DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo "Failed to build or push Docker images. Check logs for details." >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
