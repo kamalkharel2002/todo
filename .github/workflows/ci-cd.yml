@@ -34,11 +34,13 @@ jobs:
       - name: Build frontend (dev)
         uses: docker/build-push-action@v6
         with:
-          context: Frontend/todo-frontend        # ✅ same fix here
+          context: Frontend/todo-frontend
           file: Frontend/todo-frontend/Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Start services
         run: docker compose up -d --build
