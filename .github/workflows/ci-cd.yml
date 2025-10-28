@@ -30,21 +30,14 @@ jobs:
           push: false
           load: true
           tags: todo-backend:ci
-
-      - name: Debug - List files
-        run: |
-          echo "=== Repository structure ==="
-          ls -la
-          echo "=== Frontend directory ==="
-          ls -la ./Frontend/todo-frontend/
-          echo "=== Looking for Dockerfile.dev ==="
-          find . -name "Dockerfile.dev" -type f
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build frontend (dev)
         uses: docker/build-push-action@v6
         with:
-          context: ./Frontend/todo-frontend
-          file: ./Frontend/todo-frontend/Dockerfile.dev
+          context: ./Frontend
+          file: ./Frontend/Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
@@ -52,38 +45,63 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start services
-        run: docker compose up -d --build
+        run: docker compose up -d
 
       - name: Wait for MySQL
         run: |
+          echo "Waiting for MySQL to be healthy..."
           for i in {1..60}; do
-            READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-mysql || echo '"starting"')
-            [ "$READY" = '"healthy"' ] && exit 0
+            READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-mysql 2>/dev/null || echo '"starting"')
+            echo "MySQL status: $READY"
+            [ "$READY" = '"healthy"' ] && echo "MySQL is ready!" && exit 0
             sleep 2
           done
-          echo 'MySQL not healthy' && exit 1
+          echo 'MySQL failed to become healthy'
+          docker logs todo-mysql
+          exit 1
 
       - name: Wait for Redis
         run: |
+          echo "Waiting for Redis to be healthy..."
           for i in {1..60}; do
-            READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-redis || echo '"starting"')
-            [ "$READY" = '"healthy"' ] && exit 0
+            READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-redis 2>/dev/null || echo '"starting"')
+            echo "Redis status: $READY"
+            [ "$READY" = '"healthy"' ] && echo "Redis is ready!" && exit 0
             sleep 2
           done
-          echo 'Redis not healthy' && exit 1
+          echo 'Redis failed to become healthy'
+          docker logs todo-redis
+          exit 1
 
       - name: Wait for backend health
         run: |
+          echo "Waiting for backend to be healthy..."
           for i in {1..60}; do
-            curl -sf http://localhost:5001/api/health && exit 0
+            if curl -sf http://localhost:5001/api/health; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: Backend not ready yet..."
             sleep 2
           done
-          echo 'Backend not healthy' && exit 1
+          echo 'Backend failed to become healthy'
+          docker logs todo-backend
+          exit 1
+
+      - name: Verify all services are running
+        run: |
+          echo "=== Docker containers status ==="
+          docker ps -a
+          echo ""
+          echo "=== Docker compose services ==="
+          docker compose ps
 
       - name: Set up Node.js for tests
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
+          cache-dependency-path: tests/package-lock.json
 
       - name: Install test dependencies
         working-directory: tests
@@ -93,11 +111,22 @@ jobs:
         working-directory: tests
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
-        run: npm test -- --runInBand
+        run: npm test -- --runInBand --verbose
 
-      - name: Show backend logs on failure
+      - name: Show service logs on failure
         if: failure()
-        run: docker logs todo-backend || true
+        run: |
+          echo "=== Backend logs ==="
+          docker logs todo-backend || true
+          echo ""
+          echo "=== Frontend logs ==="
+          docker logs todo-frontend || true
+          echo ""
+          echo "=== MySQL logs ==="
+          docker logs todo-mysql || true
+          echo ""
+          echo "=== Redis logs ==="
+          docker logs todo-redis || true
 
       - name: Teardown services
         if: always()
@@ -133,7 +162,7 @@ jobs:
 
   cd:
     needs: ci
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -157,16 +186,22 @@ jobs:
           tags: |
             ${{ env.IMAGE_BACKEND }}:latest
             ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
 
       - name: Build & push frontend image
         uses: docker/build-push-action@v6
         with:
-          context: ./Frontend/todo-frontend
-          file: ./Frontend/todo-frontend/Dockerfile.dev
+          context: ./Frontend
+          file: ./Frontend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_FRONTEND }}:latest
             ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
 
       - name: CD Summary
         if: always()
@@ -184,6 +219,12 @@ jobs:
             echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Pull Commands:**" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ env.IMAGE_BACKEND }}:latest" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ${{ env.IMAGE_FRONTEND }}:latest" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Status: DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
