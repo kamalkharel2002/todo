@@ -26,7 +26,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
-          file: Dockerfile.dev
+          file: ./Backend/Dockerfile.dev
           push: false
           load: true
           tags: todo-backend:ci
@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend/todo-frontend
-          file: Dockerfile.dev
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
@@ -136,7 +136,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
-          file: Dockerfile.dev
+          file: ./Backend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_BACKEND }}:latest
@@ -146,7 +146,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend/todo-frontend
-          file: Dockerfile.dev
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_FRONTEND }}:latest
