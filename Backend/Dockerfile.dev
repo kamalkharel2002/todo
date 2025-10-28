@@ -7,14 +7,14 @@ WORKDIR /app
 # Copy package files for dependency installation
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies using npm ci for faster installation
 RUN npm install
 
-# Copy application code
+# Copy application code 
 COPY . .
 
 # Expose port
 EXPOSE 5001
 
-# Start development server
+# Start development server 
 CMD ["npm", "run", "dev"]
