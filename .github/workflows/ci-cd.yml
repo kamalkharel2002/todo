@@ -31,6 +31,15 @@ jobs:
           load: true
           tags: todo-backend:ci
 
+      - name: Debug - List files
+        run: |
+          echo "=== Repository structure ==="
+          ls -la
+          echo "=== Frontend directory ==="
+          ls -la ./Frontend/todo-frontend/
+          echo "=== Looking for Dockerfile.dev ==="
+          find . -name "Dockerfile.dev" -type f
+
       - name: Build frontend (dev)
         uses: docker/build-push-action@v6
         with:
