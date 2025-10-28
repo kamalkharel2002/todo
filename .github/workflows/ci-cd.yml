@@ -25,8 +25,8 @@ jobs:
       - name: Build backend (dev)
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Backend/Dockerfile.dev
+          context: ./Backend
+          file: ./Backend/Dockerfile.dev
           push: false
           load: true
           tags: todo-backend:ci
@@ -34,8 +34,8 @@ jobs:
       - name: Build frontend (dev)
         uses: docker/build-push-action@v6
         with:
-          context: Frontend/todo-frontend
-          file: Frontend/todo-frontend/Dockerfile.dev
+          context: ./Frontend/todo-frontend
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
@@ -142,8 +142,8 @@ jobs:
       - name: Build & push backend image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Backend/Dockerfile.dev
+          context: ./Backend
+          file: ./Backend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_BACKEND }}:latest
@@ -152,8 +152,8 @@ jobs:
       - name: Build & push frontend image
         uses: docker/build-push-action@v6
         with:
-          context: Frontend/todo-frontend        # ✅ same fix here
-          file: Frontend/todo-frontend/Dockerfile.dev
+          context: ./Frontend/todo-frontend
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_FRONTEND }}:latest
