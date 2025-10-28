@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend/todo-frontend
-          file: ./Frontend/todo-frontend/Dockerfile.dev
+          file: Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
