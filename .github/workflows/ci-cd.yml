@@ -22,20 +22,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # ✅ Fixed: Backend Dockerfile path
       - name: Build backend (dev)
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
-          file: Dockerfile.dev
+          file: ./Backend/Dockerfile.dev
           push: false
           load: true
           tags: todo-backend:ci
 
+      # ✅ Fixed: Frontend Dockerfile path
       - name: Build frontend (dev)
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend/todo-frontend
-          file: Dockerfile.dev
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: false
           load: true
           tags: todo-frontend:ci
@@ -81,8 +83,7 @@ jobs:
 
       - name: Show backend logs on failure
         if: failure()
-        run: |
-          docker logs todo-backend || true
+        run: docker logs todo-backend || true
 
       - name: Teardown
         if: always()
@@ -132,21 +133,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # ✅ Fixed: Backend Dockerfile path
       - name: Build & push backend image
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
-          file: Dockerfile.dev
+          file: ./Backend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_BACKEND }}:latest
             ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
 
+      # ✅ Fixed: Frontend Dockerfile path
       - name: Build & push frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend/todo-frontend
-          file: Dockerfile.dev
+          file: ./Frontend/todo-frontend/Dockerfile.dev
           push: true
           tags: |
             ${{ env.IMAGE_FRONTEND }}:latest
@@ -166,13 +169,4 @@ jobs:
             echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
-            echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Status: **DEPLOYMENT FAILED**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Failed to build or push Docker images. Check logs for details." >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:${{ git_
