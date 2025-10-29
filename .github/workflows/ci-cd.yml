@@ -37,7 +37,7 @@ jobs:
       - name: Run tests
         run: |
           cd Frontend/tests
-          npm ci
+          npm install
           npm test -- --runInBand
         env:
           API_BASE_URL: http://localhost:5001/api
