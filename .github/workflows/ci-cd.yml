@@ -46,7 +46,7 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  deploy:
+  upload:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -60,7 +60,14 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
-      - name: Push images
+      - name: Build and push backend
         run: |
-          docker compose build
-          docker compose push
+          docker build -t ${{ env.IMAGE_BACKEND }}:latest -t ${{ env.IMAGE_BACKEND }}:${{ github.sha }} -f Backend/Dockerfile.dev Backend/
+          docker push ${{ env.IMAGE_BACKEND }}:latest
+          docker push ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+      
+      - name: Build and push frontend
+        run: |
+          docker build -t ${{ env.IMAGE_FRONTEND }}:latest -t ${{ env.IMAGE_FRONTEND }}:${{ github.sha }} -f Frontend/Dockerfile.dev Frontend/
+          docker push ${{ env.IMAGE_FRONTEND }}:latest
+          docker push ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
