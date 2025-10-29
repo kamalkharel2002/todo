@@ -18,7 +18,7 @@ RUN npm install --legacy-peer-deps
 COPY Backend/ .
 
 # Copy built frontend into backend's public directory
-COPY --from=frontend-build /frontend/dist ./public
+COPY --from=frontend-build /frontend/build ./public
 
 # Environment variables for runtime
 ENV NODE_ENV=production \
