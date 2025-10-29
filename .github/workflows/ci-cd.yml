@@ -1,39 +1,49 @@
-name: CI/CD
+name: CI/CD Pipeline
 
+# Trigger: Run on pushes and PRs to main/develop branches
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
 
+# Environment variables used throughout the workflow
 env:
-  API_BASE_URL: http://localhost:5001/api
   REGISTRY: docker.io
   IMAGE_BACKEND: ${{ secrets.DOCKER_USERNAME }}/todo-backend
   IMAGE_FRONTEND: ${{ secrets.DOCKER_USERNAME }}/todo-frontend
 
 jobs:
+  # ========================================
+  # CI JOB: Build, Test, Verify
+  # ========================================
   ci:
+    name: Build & Test
     runs-on: ubuntu-latest
+    
     steps:
+      # Step 1: Get the code from repository
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Step 2: Setup Docker with buildx for efficient building
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend (dev)
+      # Step 3: Build backend Docker image (not pushed yet)
+      - name: Build backend image
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
           file: ./Backend/Dockerfile.dev
-          push: false
-          load: true
+          push: false                    # Don't push to registry yet
+          load: true                     # Load into local Docker for testing
           tags: todo-backend:ci
-          cache-from: type=gha
+          cache-from: type=gha           # Use GitHub Actions cache
           cache-to: type=gha,mode=max
 
-      - name: Build frontend (dev)
+      # Step 4: Build frontend Docker image (not pushed yet)
+      - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend
@@ -44,151 +54,138 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Start services
+      # Step 5: Start all services (frontend, backend, MySQL, Redis)
+      - name: Start all services
         run: docker compose up -d
 
+      # Step 6: Wait for MySQL to be ready (healthcheck)
       - name: Wait for MySQL
         run: |
-          echo "Waiting for MySQL to be healthy..."
+          echo "⏳ Waiting for MySQL..."
           for i in {1..60}; do
             READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-mysql 2>/dev/null || echo '"starting"')
-            echo "MySQL status: $READY"
-            [ "$READY" = '"healthy"' ] && echo "MySQL is ready!" && exit 0
+            [ "$READY" = '"healthy"' ] && echo "✅ MySQL ready!" && exit 0
             sleep 2
           done
-          echo 'MySQL failed to become healthy'
-          docker logs todo-mysql
-          exit 1
+          echo "❌ MySQL failed" && docker logs todo-mysql && exit 1
 
+      # Step 7: Wait for Redis to be ready (healthcheck)
       - name: Wait for Redis
         run: |
-          echo "Waiting for Redis to be healthy..."
+          echo "⏳ Waiting for Redis..."
           for i in {1..60}; do
             READY=$(docker inspect -f '{{json .State.Health.Status}}' todo-redis 2>/dev/null || echo '"starting"')
-            echo "Redis status: $READY"
-            [ "$READY" = '"healthy"' ] && echo "Redis is ready!" && exit 0
+            [ "$READY" = '"healthy"' ] && echo "✅ Redis ready!" && exit 0
             sleep 2
           done
-          echo 'Redis failed to become healthy'
-          docker logs todo-redis
-          exit 1
+          echo "❌ Redis failed" && docker logs todo-redis && exit 1
 
-      - name: Wait for backend health
+      # Step 8: Wait for backend API to be ready
+      - name: Wait for backend API
         run: |
-          echo "Waiting for backend to be healthy..."
+          echo "⏳ Waiting for backend..."
           for i in {1..60}; do
             if curl -sf http://localhost:5001/api/health; then
-              echo "Backend is ready!"
+              echo "✅ Backend ready!"
               exit 0
             fi
-            echo "Attempt $i: Backend not ready yet..."
             sleep 2
           done
-          echo 'Backend failed to become healthy'
-          docker logs todo-backend
-          exit 1
+          echo "❌ Backend failed" && docker logs todo-backend && exit 1
 
-      - name: Verify all services are running
+      # Step 9: Show status of all running containers
+      - name: Verify services
         run: |
-          echo "=== Docker containers status ==="
-          docker ps -a
-          echo ""
-          echo "=== Docker compose services ==="
+          echo "📦 Running containers:"
           docker compose ps
 
-      - name: Set up Node.js for tests
+      # Step 10: Install Node.js for running tests
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
+      # Step 11: Install test dependencies
       - name: Install test dependencies
         working-directory: Frontend/tests
         run: npm ci || npm install
 
-      - name: Run tests (Jest)
+      # Step 12: Run all tests
+      - name: Run tests
         working-directory: Frontend/tests
         env:
-          API_BASE_URL: ${{ env.API_BASE_URL }}
+          API_BASE_URL: http://localhost:5001/api
         run: npm test -- --runInBand --verbose
 
-      - name: Show service logs on failure
+      # Step 13: If tests fail, show logs for debugging
+      - name: Show logs on failure
         if: failure()
         run: |
-          echo "=== Backend logs ==="
-          docker logs todo-backend || true
-          echo ""
-          echo "=== Frontend logs ==="
-          docker logs todo-frontend || true
-          echo ""
-          echo "=== MySQL logs ==="
-          docker logs todo-mysql || true
-          echo ""
-          echo "=== Redis logs ==="
-          docker logs todo-redis || true
+          echo "=== Backend Logs ===" && docker logs todo-backend
+          echo "=== Frontend Logs ===" && docker logs todo-frontend
+          echo "=== MySQL Logs ===" && docker logs todo-mysql
+          echo "=== Redis Logs ===" && docker logs todo-redis
 
-      - name: Teardown services
+      # Step 14: Clean up - stop and remove all containers
+      - name: Cleanup
         if: always()
         run: docker compose down -v
 
+      # Step 15: Create summary for GitHub Actions UI
       - name: CI Summary
         if: always()
         run: |
-          STATUS="${{ job.status }}"
-          echo "## 🎯 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$STATUS" = "success" ]; then
-            echo "### ✅ Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All tests passed successfully!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Build Details:**" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Backend build completed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Frontend build completed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ MySQL health check passed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Redis health check passed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Backend health check passed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ All tests executed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 CI Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ All Tests Passed!" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Status: FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Pipeline encountered errors. Check logs above for details." >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Tests Failed" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
+  # ========================================
+  # CD JOB: Deploy to Docker Hub
+  # Only runs on main branch after CI passes
+  # ========================================
   cd:
-    needs: ci
+    name: Deploy to Docker Hub
+    needs: ci                                              # Wait for CI to pass
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    
     steps:
+      # Step 1: Get the code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Step 2: Setup Docker buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Step 3: Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build & push backend image
+      # Step 4: Build and push backend image with two tags
+      - name: Push backend to Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: ./Backend
           file: ./Backend/Dockerfile.dev
-          push: true
+          push: true                                       # Push to Docker Hub
           tags: |
-            ${{ env.IMAGE_BACKEND }}:latest
-            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+            ${{ env.IMAGE_BACKEND }}:latest                # Latest tag
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}     # Commit SHA tag
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name: Build & push frontend image
+      # Step 5: Build and push frontend image with two tags
+      - name: Push frontend to Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: ./Frontend
@@ -201,34 +198,23 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
+      # Step 6: Create deployment summary
       - name: CD Summary
         if: always()
         run: |
-          STATUS="${{ job.status }}"
-          echo "## 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$STATUS" = "success" ]; then
-            echo "### ✅ Status: DEPLOYMENT SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deployment Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Deployed to Docker Hub!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Docker images successfully built and pushed to registry!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Published Images:**" >> $GITHUB_STEP_SUMMARY
+            echo "**Images Published:**" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
-            echo "- 🐳 \`${{ env.IMAGE_BACKEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
             echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:latest\`" >> $GITHUB_STEP_SUMMARY
-            echo "- 🐳 \`${{ env.IMAGE_FRONTEND }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Pull Commands:**" >> $GITHUB_STEP_SUMMARY
+            echo "**Pull commands:**" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
             echo "docker pull ${{ env.IMAGE_BACKEND }}:latest" >> $GITHUB_STEP_SUMMARY
             echo "docker pull ${{ env.IMAGE_FRONTEND }}:latest" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           else
-            echo "### ❌ Status: DEPLOYMENT FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Failed to build or push Docker images. Check logs for details." >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
