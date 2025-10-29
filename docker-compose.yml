@@ -3,9 +3,11 @@ services:
   mysql:
     image: mysql:8.0
     container_name: todo-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: kamal2002
-      MYSQL_DATABASE: todo_app
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
     ports:
       - "3306:3306"
     volumes:
@@ -52,15 +54,8 @@ services:
       # Mount folders
       - ./Backend/middleware:/app/middleware
       - ./Backend/routes:/app/routes        # Redis file
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=mysql          
-      - DB_USER=root               
-      - DB_PASSWORD=kamal2002    
-      - DB_NAME=todo_app           
-      - REDIS_HOST=redis      
-      - REDIS_PORT=6379          
-      - JWT_SECRET=your_jwt_secret_key_here_make_it_strong
+    env_file:
+      - .env
     depends_on:
       mysql:
         condition: service_healthy

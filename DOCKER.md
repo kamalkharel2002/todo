@@ -196,18 +196,6 @@ docker stats
 - **MySQL**: localhost:3306
 - **Redis**: localhost:6379
 
-## 📝 Environment Variables
-
-### Backend
-- `NODE_ENV`: development/production
-- `DB_HOST`: mysql
-- `DB_USER`: root
-- `DB_PASSWORD`: kamal2002
-- `DB_NAME`: todo_app
-- `REDIS_HOST`: redis
-- `REDIS_PORT`: 6379
-- `JWT_SECRET`: your_jwt_secret_key_here_make_it_strong
-
 ### Frontend
 - `REACT_APP_API_URL`: http://localhost:5001
 

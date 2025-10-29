@@ -102,21 +102,6 @@ CREATE TABLE todos (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
-
-## Configuration
-
-Update the database credentials in `Backend/config.js`:
-
-```javascript
-module.exports = {
-  DB_HOST: 'localhost',
-  DB_USER: 'root',
-  DB_PASSWORD: 'kamal2002',
-  DB_NAME: 'todo_app',
-  // ... other config
-};
-```
-
 ## Features Explained
 
 ### Authentication Flow
