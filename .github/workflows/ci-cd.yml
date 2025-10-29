@@ -100,15 +100,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: tests/package-lock.json
 
       - name: Install test dependencies
-        working-directory: tests
+        working-directory: Frontend/tests
         run: npm ci || npm install
 
       - name: Run tests (Jest)
-        working-directory: tests
+        working-directory: Frontend/tests
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
         run: npm test -- --runInBand --verbose
