@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  web:
+    image: your-dockerhub-username/todo-app:latest
+    container_name: todo-web
+    ports:
+      - "80:5001"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=kamal2002
+      - DB_NAME=todo_app
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your_jwt_secret_key_here_make_it_strong
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - todo-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: todo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: kamal2002
+      MYSQL_DATABASE: todo_app
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - todo-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: todo-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - todo-network
+
+volumes:
+  mysql_data:
+
+networks:
+  todo-network:
+    driver: bridge
