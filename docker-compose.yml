@@ -79,19 +79,19 @@ services:
   # Frontend Service
   frontend:
     build:
-      context: ./Frontend/todo-frontend
+      context: ./Frontend
       dockerfile: Dockerfile.dev
     container_name: todo-frontend
     ports:
       - "3000:3000"
     volumes:
      # Mount source code and public files
-      - ./Frontend/todo-frontend/src:/app/src
-      - ./Frontend/todo-frontend/public:/app/public
+      - ./Frontend/src:/app/src
+      - ./Frontend/public:/app/public
       # Mount config files that might affect build
-      - ./Frontend/todo-frontend/package.json:/app/package.json
-      - ./Frontend/todo-frontend/tailwind.config.js:/app/tailwind.config.js
-      - ./Frontend/todo-frontend/postcss.config.js:/app/postcss.config.js
+      - ./Frontend/package.json:/app/package.json
+      - ./Frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./Frontend/postcss.config.js:/app/postcss.config.js
     environment:
       - REACT_APP_API_URL=http://localhost:5001
     depends_on:

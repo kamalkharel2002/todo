@@ -1,0 +1,20 @@
+# Build stage for development
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for dependency installation
+COPY package*.json ./
+
+# Add timeout and retry for CI environments
+RUN npm install --legacy-peer-deps --fetch-timeout=60000 --fetch-retries=5
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "start"]
