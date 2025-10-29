@@ -174,12 +174,9 @@ jobs:
       - name: Push backend to Docker Hub
         uses: docker/build-push-action@v6
         with:
-          context: ./Backend
-          file: ./Backend/Dockerfile.dev
-          push: true                                       # Push to Docker Hub
           tags: |
-            ${{ env.IMAGE_BACKEND }}:latest                # Latest tag
-            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}     # Commit SHA tag
+            ${{ env.IMAGE_BACKEND }}:latest
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
